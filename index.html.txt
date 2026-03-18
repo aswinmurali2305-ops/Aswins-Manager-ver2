@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aswin's Money Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { padding-bottom: 100px; }
+        input, select { border: 1px solid #e2e8f0 !important; font-size: 16px !important; }
+        .tab-active { color: #2563eb; border-top: 3px solid #2563eb; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+    <div id="page-dashboard" class="p-4 space-y-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-black text-gray-800 tracking-tight">Aswin's <span class="text-blue-600">Money Manager</span></h1>
+            <button onclick="exportToCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold active:scale-95 shadow-md">
+                📊 EXCEL EXPORT
+            </button>
+        </div>
+
+        <div id="export-reminder" class="text-center p-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"></div>
+        
+        <div class="grid grid-cols-2 gap-4 text-center">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Monthly Count</p>
+                <p id="stat-month-count" class="text-2xl font-black">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <p class="text-[10px] text-gray-500 uppercase font-bold text-green-600">Received</p>
+                <p id="stat-money-in" class="text-2xl font-black text-green-600">$0</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 col-span-2">
+                <p class="text-[10px] text-gray-500 uppercase font-bold text-red-500">Total Pending</p>
+                <p id="stat-pending" class="text-2xl font-black text-red-600">$0</p>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 p-6 rounded-2xl shadow-lg text-white">
+            <h2 class="text-lg font-semibold mb-4 text-center">Quick Service Entry</h2>
+            <div class="space-y-3">
+                <input id="in-name" type="text" placeholder="Customer Name" class="w-full p-3 rounded-lg text-black outline-none">
+                <div class="flex gap-2">
+                    <input id="in-date" type="date" class="w-1/2 p-3 rounded-lg text-black outline-none">
+                    <input id="in-time" type="time" class="w-1/2 p-3 rounded-lg text-black outline-none">
+                </div>
+                <div class="relative">
+                    <span class="absolute left-3 top-3 text-gray-400 font-bold">CAD</span>
+                    <input id="in-amount" type="number" value="15" class="w-full p-3 pl-14 rounded-lg text-black outline-none">
+                </div>
+                <select id="in-status" class="w-full p-3 rounded-lg text-black outline-none">
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                </select>
+                <button onclick="addEntry()" class="w-full bg-blue-500 text-white font-bold py-4 rounded-xl active:scale-95 shadow-md">SAVE TO LOG</button>
+            </div>
+        </div>
+
+        <div class="pt-10 flex justify-center">
+             <button onclick="clearAllData()" class="text-gray-300 text-[10px] uppercase font-bold tracking-widest hover:text-red-400">Clear All Data</button>
+        </div>
+    </div>
+
+    <div id="page-calendar" class="hidden p-4">
+        <h1 class="text-2xl font-bold mb-4 text-gray-800">Service Log</h1>
+        <div id="weekly-summary" class="bg-blue-600 text-white p-4 rounded-xl mb-6 flex justify-between items-center shadow-md">
+            <div>
+                <p class="text-[10px] opacity-80 uppercase font-bold">This Week</p>
+                <p id="week-total-sessions" class="font-bold">Sessions: 0</p>
+            </div>
+            <div class="text-right font-mono">
+                <p id="week-earned" class="text-green-300 font-bold">+$0</p>
+                <p id="week-pending" class="text-red-300 font-bold">-$0</p>
+            </div>
+        </div>
+        <input type="date" id="calendar-filter" onchange="renderCalendar()" class="w-full p-3 mb-4 border rounded-lg shadow-sm">
+        <div id="calendar-list" class="space-y-3 pb-4"></div>
+    </div>
+
+    <div id="page-customers" class="hidden p-4">
+        <h1 class="text-2xl font-bold mb-2 text-gray-800">Clients</h1>
+        <div class="bg-red-50 border border-red-100 p-3 rounded-xl mb-4 flex justify-between items-center">
+            <span class="text-[10px] uppercase font-black text-red-400">Total Money Owed:</span>
+            <span id="global-pending" class="text-xl font-black text-red-600">CAD 0</span>
+        </div>
+        <input type="text" id="customer-search" placeholder="Search clients..." oninput="renderCustomers()" class="w-full p-3 mb-4 border rounded-lg shadow-sm">
+        <div id="customer-list" class="space-y-3"></div>
+    </div>
+
+    <div id="modal-profile" class="hidden fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
+        <button onclick="closeProfile()" class="text-blue-600 mb-6 font-bold flex items-center gap-2"><span>←</span> Back</button>
+        <div id="profile-content"></div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-3 pb-8 shadow-2xl z-40">
+        <button onclick="showPage('dashboard')" class="flex flex-col items-center text-gray-400" id="nav-dashboard">
+            <span class="text-[10px] font-black uppercase">Dashboard</span>
+        </button>
+        <button onclick="showPage('calendar')" class="flex flex-col items-center text-gray-400" id="nav-calendar">
+            <span class="text-[10px] font-black uppercase">Log</span>
+        </button>
+        <button onclick="showPage('customers')" class="flex flex-col items-center text-gray-400" id="nav-customers">
+            <span class="text-[10px] font-black uppercase">Clients</span>
+        </button>
+    </nav>
+
+    <script>
+        let services = JSON.parse(localStorage.getItem('aswin_money_data')) || [];
+        let lastExport = localStorage.getItem('aswin_last_export') || null;
+        let currentProfileName = "";
+
+        function save() { 
+            localStorage.setItem('aswin_money_data', JSON.stringify(services)); 
+            renderDashboard(); 
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('[id^="page-"]').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + pageId).classList.remove('hidden');
+            document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('text-blue-600', 'tab-active'));
+            document.getElementById('nav-' + pageId).classList.add('text-blue-600', 'tab-active');
+            if(pageId === 'dashboard') renderDashboard();
+            if(pageId === 'calendar') renderCalendar();
+            if(pageId === 'customers') renderCustomers();
+        }
+
+        function addEntry() {
+            const nameInput = document.getElementById('in-name');
+            const dateInput = document.getElementById('in-date');
+            const timeInput = document.getElementById('in-time');
+            const amountInput = document.getElementById('in-amount');
+            const statusInput = document.getElementById('in-status');
+
+            const entry = {
+                id: Date.now(),
+                name: nameInput.value.trim(),
+                date: dateInput.value,
+                time: timeInput.value,
+                amount: parseFloat(amountInput.value) || 0,
+                status: statusInput.value
+            };
+
+            if(!entry.name || !entry.date) {
+                alert("Please enter Name and Date!");
+                return;
+            }
+
+            services.push(entry);
+            save();
+            nameInput.value = ''; // Reset name for next entry
+            alert("✅ Record Saved to Dashboard!");
+        }
+
+        function deleteEntry(id) {
+            if(!confirm("Delete this session?")) return;
+            services = services.filter(s => s.id !== id);
+            save();
+            renderCalendar();
+        }
+
+        function markPaid(id) {
+            const idx = services.findIndex(s => s.id === id);
+            services[idx].status = 'Paid';
+            save();
+            renderCalendar();
+        }
+
+        function renderDashboard() {
+            const now = new Date();
+            const thisMonth = now.toISOString().substring(0, 7);
+            const monthEntries = services.filter(s => s.date.startsWith(thisMonth));
+            
+            document.getElementById('stat-month-count').innerText = monthEntries.length;
+            document.getElementById('stat-money-in').innerText = "CAD " + services.filter(s => s.status === 'Paid').reduce((a, b) => a + b.amount, 0);
+            document.getElementById('stat-pending').innerText = "CAD " + services.filter(s => s.status === 'Pending').reduce((a, b) => a + b.amount, 0);
+
+            const reminderEl = document.getElementById('export-reminder');
+            if(!lastExport) {
+                reminderEl.innerText = "Backup Notice: Export required!";
+                reminderEl.className = "text-center p-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-yellow-100 text-yellow-700";
+            } else {
+                const diffDays = Math.floor(Math.abs(now - new Date(lastExport)) / (1000 * 60 * 60 * 24));
+                reminderEl.innerText = `Last Excel Export: ${diffDays} days ago`;
+                reminderEl.className = diffDays > 7 ? "text-center p-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-600" : "text-center p-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-400";
+            }
+        }
+
+        function renderCalendar() {
+            const list = document.getElementById('calendar-list');
+            const filterDate = document.getElementById('calendar-filter').value;
+            list.innerHTML = '';
+            
+            const filtered = filterDate ? services.filter(s => s.date === filterDate) : services;
+            filtered.sort((a,b) => b.id - a.id).forEach(s => {
+                list.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border-l-4 ${s.status === 'Paid' ? 'border-green-500' : 'border-red-500'}">
+                        <div>
+                            <p class="font-bold text-gray-800">${s.name}</p>
+                            <p class="text-[10px] text-gray-400 font-mono">${s.date} | ${s.time}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-slate-700">CAD ${s.amount}</p>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="deleteEntry(${s.id})" class="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase">Delete</button>
+                                ${s.status === 'Pending' ? `<button onclick="markPaid(${s.id})" class="bg-green-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase">Paid</button>` : '<span class="text-green-600 text-[10px] font-bold uppercase">Paid</span>'}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function renderCustomers() {
+            const search = document.getElementById('customer-search').value.toLowerCase();
+            const list = document.getElementById('customer-list');
+            list.innerHTML = '';
+            const customers = [...new Set(services.map(s => s.name))];
+            
+            const totalPending = services.filter(s => s.status === 'Pending').reduce((a, b) => a + b.amount, 0);
+            document.getElementById('global-pending').innerText = `CAD ${totalPending}`;
+
+            customers.filter(c => c.toLowerCase().includes(search)).forEach(name => {
+                const userServices = services.filter(s => s.name === name);
+                const pending = userServices.filter(s => s.status === 'Pending').reduce((a, b) => a + b.amount, 0);
+                list.innerHTML += `
+                    <div onclick="openProfile('${name}')" class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border border-gray-100 active:bg-blue-50">
+                        <div><p class="font-bold text-lg text-slate-800">${name}</p><p class="text-[10px] text-gray-400 font-bold uppercase">${userServices.length} Sessions</p></div>
+                        <div class="text-right"><p class="font-black ${pending > 0 ? 'text-red-500' : 'text-green-600'}">Unpaid: ${pending}</p></div>
+                    </div>`;
+            });
+        }
+
+        function openProfile(name) {
+            currentProfileName = name;
+            document.getElementById('modal-profile').classList.remove('hidden');
+            renderProfileDetails();
+        }
+
+        function renderProfileDetails() {
+            const filterValue = document.getElementById('history-filter')?.value.toLowerCase() || "";
+            const name = currentProfileName;
+            const content = document.getElementById('profile-content');
+            const userServices = services.filter(s => s.name === name).sort((a,b) => b.id - a.id);
+            const filteredHistory = userServices.filter(s => s.date.includes(filterValue) || s.time.includes(filterValue));
+            const pending = userServices.filter(s => s.status === 'Pending').reduce((a, b) => a + b.amount, 0);
+
+            let waList = userServices.map(s => `- ${s.date} ${s.time}: CAD ${s.amount} (${s.status})`).join('\n');
+            const waFull = encodeURIComponent(`Hi ${name}, your session summary:\n\nOutstanding Balance: CAD ${pending}\n\nHistory:\n${waList}`);
+            const waNudge = encodeURIComponent(`Hi ${name}, just a friendly nudge regarding the pending balance of CAD ${pending} from our recent sessions. Thank you!`);
+            
+            let historyHtml = filteredHistory.map(s => `
+                <div class="py-4 border-b flex justify-between items-center">
+                    <div><p class="font-bold text-slate-700">${s.date}</p><p class="text-xs text-gray-400 font-mono">${s.time}</p></div>
+                    <span class="font-bold ${s.status === 'Pending' ? 'text-red-500' : 'text-green-600'}">CAD ${s.amount}</span>
+                </div>`).join('');
+
+            content.innerHTML = `
+                <h2 class="text-3xl font-black text-slate-800">${name}</h2>
+                <div class="grid grid-cols-2 gap-4 my-6">
+                    <div class="bg-blue-50 p-4 rounded-xl"><p class="text-[10px] uppercase text-blue-500 font-bold">Total Visits</p><p class="text-2xl font-black text-blue-900">${userServices.length}</p></div>
+                    <div class="bg-red-50 p-4 rounded-xl"><p class="text-[10px] uppercase text-red-400 font-bold">Unpaid CAD</p><p class="text-2xl font-black text-red-600">${pending}</p></div>
+                </div>
+                <div class="space-y-2 mb-6">
+                    <button onclick="window.open('https://wa.me/?text=${waFull}')" class="w-full bg-[#25D366] text-white font-bold py-4 rounded-2xl shadow-md active:scale-95">Send History to WhatsApp</button>
+                    ${pending > 0 ? `<button onclick="window.open('https://wa.me/?text=${waNudge}')" class="w-full bg-slate-100 text-slate-600 font-bold py-3 rounded-2xl text-xs uppercase active:scale-95">Send Quick Reminder</button>` : ''}
+                </div>
+                <div class="mb-4">
+                    <p class="text-[10px] uppercase text-gray-400 font-bold mb-1">Filter History</p>
+                    <input type="text" id="history-filter" oninput="renderProfileDetails()" placeholder="Search date or time..." class="w-full p-3 rounded-lg text-sm bg-gray-50 outline-none" value="${filterValue}">
+                </div>
+                <div class="pb-20">${historyHtml || '<p class="text-gray-400 text-sm">No records found.</p>'}</div>
+            `;
+            if(filterValue) document.getElementById('history-filter').focus();
+        }
+
+        function closeProfile() { document.getElementById('modal-profile').classList.add('hidden'); }
+
+        function exportToCSV() {
+            if(services.length === 0) return alert("No data to export!");
+            let csv = "Customer Name,Date,Time,Amount,Status\n";
+            services.forEach(s => csv += `"${s.name}","${s.date}","${s.time}",${s.amount},"${s.status}"\n`);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `Aswin_Report_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            lastExport = new Date().toISOString();
+            localStorage.setItem('aswin_last_export', lastExport);
+            renderDashboard();
+        }
+
+        function clearAllData() {
+            if(!confirm("Are you sure? This will delete ALL data.")) return;
+            services = []; save(); location.reload();
+        }
+
+        document.getElementById('in-date').valueAsDate = new Date();
+        showPage('dashboard');
+    </script>
+</body>
+</html>
